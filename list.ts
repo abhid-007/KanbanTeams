@@ -48,3 +48,57 @@ export const createLists = async (data: { title: string; boardId: string }) => {
 // update list
 
 export const updateList = async (data: {
+    title: string;
+    boardId: string;
+    id: string;
+  }) => {
+    const { title, id, boardId } = data;
+    let list;
+  
+    try {
+      list = await prismaDB.list.update({
+        where: {
+          id,
+          boardId,
+        },
+        data: {
+          title,
+        },
+      });
+  
+      await createAudLog({
+        tableId: list.id,
+        tableTitle: list.title,
+        tableType: TABLE_TYPE.LIST,
+        action: ACTION.UPDATE,
+        orgId: "",
+      });
+    } catch (error) {
+      return {
+        error: "Not updated",
+      };
+    }
+  
+    revalidatePath(`/board/${boardId}`);
+    return { result: list };
+  };
+  
+  // copy list
+  
+  export const listCopy = async (data: { id: string; boardId: string }) => {
+    const session = await getAuthSession();
+    if (!session) {
+      return {
+        error: "user not found",
+      };
+    }
+    const { id, boardId } = data;
+    let list;
+    try {
+      const listtoCopy = await prismaDB.list.findUnique({
+        where: { id, boardId },
+        include: {
+          cards: true,
+        },
+      });
+  
