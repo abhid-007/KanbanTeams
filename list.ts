@@ -101,4 +101,57 @@ export const updateList = async (data: {
           cards: true,
         },
       });
+
+      if (!listtoCopy) {
+        return {
+          error: "list not found",
+        };
+      }
+      const lastList = await prismaDB.list.findFirst({
+        where: { boardId },
+        orderBy: { order: "desc" },
+        select: { order: true },
+      });
   
+      const order = lastList ? lastList.order + 1 : 1;
+  
+      list = await prismaDB.list.create({
+        data: {
+          boardId: listtoCopy.boardId,
+          title: `${listtoCopy?.title} - copy`,
+          order,
+          cards: listtoCopy?.cards?.length
+            ? {
+                createMany: {
+                  data: listtoCopy?.cards?.map((card: any) => ({
+                    title: card?.title,
+                    description: card.description,
+                    order: card.order,
+                  })),
+                },
+              }
+            : {},
+        },
+        include: {
+          cards: true,
+        },
+      });
+      console.log("list", list);
+      await createAudLog({
+        tableId: list.id,
+        tableTitle: list.title,
+        tableType: TABLE_TYPE.LIST,
+        action: ACTION.CREATE,
+        orgId: "",
+      });
+    } catch (error) {
+      return {
+        error: "failed to copy",
+      };
+    }
+  
+    revalidatePath(`/board/${boardId}`);
+    return { result: list };
+  };
+  
+    
