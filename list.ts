@@ -154,4 +154,63 @@ export const updateList = async (data: {
     return { result: list };
   };
   
-    
+
+//  delete list
+export const listDelete = async (data: { id: string; boardId: string }) => {
+    const session = await getAuthSession();
+    if (!session) {
+      return {
+        error: "user not found",
+      };
+    }
+    const { id, boardId } = data;
+    let list;
+    try {
+      list = await prismaDB.list.delete({
+        where: { id, boardId },
+      });
+  
+      await createAudLog({
+        tableId: list.id,
+        tableTitle: list.title,
+        tableType: TABLE_TYPE.LIST,
+        action: ACTION.DELETE,
+        orgId: "",
+      });
+    } catch (error) {
+      return {
+        error: "failed to copy",
+      };
+    }
+  
+    revalidatePath(`/board/${boardId}`);
+    return { result: list };
+  };
+  
+  // re order list
+  export const reorderList = async (data: { items: any; boardId: string }) => {
+    const session = await getAuthSession();
+    if (!session) {
+      return {
+        error: "user not found",
+      };
+    }
+    const { items, boardId } = data;
+    let lists;
+    try {
+      const transaction = items.map((list: any) =>
+        prismaDB.list.update({
+          where: { id: list.id },
+          data: {
+            order: list.order,
+          },
+        })
+      );
+      lists = await prismaDB.$transaction(transaction);
+    } catch (error) {
+      return { error: "list not reordered" };
+    }
+  
+    revalidatePath(`/board/${boardId}`);
+    return { result: lists };
+  };    
